@@ -101,13 +101,11 @@ in
         else
           initCmd
       );
-      starship.init = lib.mkDefault (exe: "source ${initScript exe "init zsh"}");
+      starship.initArgs = lib.mkDefault "init zsh";
       # Only set init if powerlevel10k is disabled and direnv is enabled
       # powerlevel10k has its own special way of initializing direnv
-      direnv.init = lib.mkIf (!config.prompts.powerlevel10k.enable) (
-        lib.mkDefault (exe: "source ${initScript exe "hook zsh"}")
-      );
-      devenv.init = lib.mkDefault (exe: "source ${initScript exe "hook zsh"}");
+      direnv.initArgs = lib.mkIf (!config.prompts.powerlevel10k.enable) (lib.mkDefault "hook zsh");
+      devenv.initArgs = lib.mkDefault "hook zsh";
       kitty.init = ''
         if [[ -n "$KITTY_INSTALLATION_DIR" ]]; then
           export KITTY_SHELL_INTEGRATION="enabled"
