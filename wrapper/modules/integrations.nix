@@ -124,6 +124,6 @@ in
     # We need to re-define this in the context of zsh, as otherwise
     # the direnv hook will not pick up the config wrapped inside
     # the direnv-wrapper.
-    env.DIRENV_CONFIG = lib.mkIf direnvConfig.enable direnvConfig.settings.passthru.DIRENV_CONFIG;
+    # env.DIRENV_CONFIG = lib.mkIf direnvConfig.enable direnvConfig.settings.passthru.DIRENV_CONFIG;
   };
 }
