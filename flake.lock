@@ -37,11 +37,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1792506237,
-        "narHash": "sha256-Q/8KLB6jNfpaUN1HAedE/u/Et9feE/zYSsutBLKrCFk=",
+        "lastModified": 1793494649,
+        "narHash": "sha256-Thn0OE71NF80ZfOMGCgJvKtbCcnnz0fToT/qsvb/Gtc=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "5adc50831c259f87faeb09ddf930d43597197473",
+        "rev": "d357a2b54f0b6dc4aeb4e993190a52cf151b6f24",
         "type": "github"
       },
       "original": {
@@ -66,17 +66,18 @@
         ]
       },
       "locked": {
-        "lastModified": 1792860223,
-        "narHash": "sha256-pctQ8nh93AP0gdPQB11K7RfiKHCisfkrgKJEueDaTfE=",
-        "ref": "refs/heads/direnv-wrapper-module",
-        "rev": "c611b4ac4fed8b27a063719e8803dc1f121101d5",
-        "revCount": 810,
-        "type": "git",
-        "url": "file:///home/zenoli/repos/nix-wrapper-modules"
+        "lastModified": 1792864560,
+        "narHash": "sha256-rJDstXPviP6rXKj6/54/nzn/O87PhDB76saJ6BrHwOY=",
+        "owner": "zenoli",
+        "repo": "nix-wrapper-modules",
+        "rev": "d15050944bcaf905a4f67cf9d42ec58df82f72c3",
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "file:///home/zenoli/repos/nix-wrapper-modules"
+        "owner": "zenoli",
+        "ref": "direnv-wrapper-module",
+        "repo": "nix-wrapper-modules",
+        "type": "github"
       }
     }
   },
