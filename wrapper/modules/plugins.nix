@@ -19,7 +19,7 @@ let
       ]
       ++ (lib.optional (plugin.init != null) plugin.init)
     )
-  ) (wlib.dag.sortAndUnwrap { dag = config.plugins; });
+  ) (wlib.dag.sortAndUnwrap { dag = enabledPlugins; });
 in
 {
   options = {
