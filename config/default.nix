@@ -6,8 +6,11 @@
   ...
 }:
 {
-  imports = [ ./plugins.nix ];
-  prompt = "starship";
+  imports = [
+    ./plugins.nix
+    ./oh-my-posh.nix
+  ];
+  prompt = "oh-my-posh";
   viMode.enable = true;
   prompts = {
     powerlevel10k = {
