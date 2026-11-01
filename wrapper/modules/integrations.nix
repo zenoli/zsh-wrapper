@@ -91,16 +91,7 @@ in
   config = {
     integrations = {
       # Preset init commands
-      fzf.init = lib.mkDefault (
-        exe:
-        let
-          initCmd = "source ${initScript exe "--zsh"}";
-        in
-        if (config.utils.hasPlugin "zsh-vi-mode") then
-          "zvm_after_init_commands+=('${initCmd}')"
-        else
-          initCmd
-      );
+      fzf.init = lib.mkDefault (exe: "source ${initScript exe "--zsh"}");
       starship.initArgs = lib.mkDefault "init zsh";
       # Only set init if powerlevel10k is disabled and direnv is enabled
       # powerlevel10k has its own special way of initializing direnv
