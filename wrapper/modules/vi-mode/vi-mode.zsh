@@ -61,6 +61,10 @@ KEYTIMEOUT=1
   bindkey -M viins '^W' backward-kill-word
   bindkey -M viins '^U' backward-kill-line
 
+  # Cycle through history in insert mode, like the arrow keys
+  bindkey -M viins '^P' up-line-or-history
+  bindkey -M viins '^N' down-line-or-history
+
   # Cursor shape: block in normal mode, beam in insert mode
   function _vi_mode_cursor() {
     if [[ $KEYMAP == vicmd ]]; then

@@ -5,7 +5,7 @@ let
   lambda = "󰘧";
 
   # Icons matching the powerlevel10k nerdfont-v3 defaults
-  homeIcon = ""; # nf-fa-home
+  homeIcon = ""; # nf-fa-home
   homeSubIcon = ""; # nf-fa-folder_open
   folderIcon = ""; # nf-fa-folder_open_o
   branchIcon = ""; # nf-fa-code_fork
