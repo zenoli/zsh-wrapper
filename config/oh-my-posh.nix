@@ -26,17 +26,18 @@ let
   # Template condition: current dir is one of homeFolders (or below it, if withSubdirs)
   inHomeFolder =
     withSubdirs:
-    "(or ${
-      lib.concatMapStringsSep " " (
+    let
+      conditions = lib.concatMap (
         name:
-        "(eq .Location (printf \"%s/${name}\" .Env.HOME))"
-        + lib.optionalString withSubdirs " (hasPrefix (printf \"%s/${name}/\" .Env.HOME) .Location)"
-      ) (lib.attrNames homeFolders)
-    })";
+        [ ''(eq .Location (printf "%s/${name}" .Env.HOME))'' ]
+        ++ lib.optional withSubdirs ''(hasPrefix (printf "%s/${name}/" .Env.HOME) .Location)''
+      ) (lib.attrNames homeFolders);
+    in
+    "(or ${lib.concatStringsSep " " conditions})";
   # Template condition: current dir is inside a git repo (other than a ~ dotfiles repo).
   # Reads the git segment's properties, see:
   # https://ohmyposh.dev/docs/configuration/templates#cross-segment-template-properties
-  inRepo = "(and (.Segments.Contains \"Git\") (ne .Segments.Git.Dir .Env.HOME))";
+  inRepo = ''(and (.Segments.Contains "Git") (ne .Segments.Git.Dir .Env.HOME))'';
 
   # Responsive prompt: terminal widths (in columns) below which segments collapse or hide.
   # Uses the segments' min_width/max_width, see:
@@ -60,16 +61,20 @@ let
   # otherwise. Without it (e.g. omp used outside this wrapper) nothing is truncated.
   widthPercent =
     percent:
-    "(max 8 (div (mul (atoi (default \"9999\" .Env.OMP_COLUMNS)) ${toString percent}) 100))";
+    ''(max 8 (div (mul (atoi (default "9999" .Env.OMP_COLUMNS)) ${toString percent}) 100))'';
 
   # Template expressions for the path text.
   # In a repo, show the repo name and the path within it
-  repoPath = "(trimSuffix \"/\" (printf \"%s/%s\" .Segments.Git.RepoName .Segments.Git.RelativeDir))";
+  repoPath = ''(trimSuffix "/" (printf "%s/%s" .Segments.Git.RepoName .Segments.Git.RelativeDir))'';
   # repoPath collapsed like the letter style, as .Format doesn't shorten relative paths.
   # Keeps the first letter of each folder but the last (two for hidden folders).
-  repoPathLetters = "(regexReplaceAll \"([.]?[^/])[^/]*/\" ${repoPath} \"$1/\")";
+  repoPathLetters = ''(regexReplaceAll "([.]?[^/])[^/]*/" ${repoPath} "$1/")'';
   # The letter style drops the leading / of paths outside ~
-  letterPath = "(printf \"%s%s\" (ternary \"\" \"/\" (or (hasPrefix \"/\" .Path) (eq .Location .Env.HOME) (hasPrefix (printf \"%s/\" .Env.HOME) .Location))) .Path)";
+  letterPath = ''(printf "%s%s" (ternary "" "/" (or (hasPrefix "/" .Path) (eq .Location .Env.HOME) (hasPrefix (printf "%s/" .Env.HOME) .Location))) .Path)'';
+
+  # Multi-line templates below use {{- and -}}, which trim all whitespace (incl. newlines)
+  # before/after the tag. Spaces that are part of the output are written as {{ " " }}
+  # where they'd otherwise be trimmed.
 
   mkPathSegment =
     {
@@ -83,11 +88,30 @@ let
       type = "path";
       style = "plain";
       foreground = "blue";
-      # Mapped home folders bring their own icon (unless in a repo). Otherwise:
-      # home icon in ~, open folder icon below ~, folder icon elsewhere.
-      # Overly long paths keep their end: …/deep/dir. Negative truncE always adds the …
-      # and fails on shorter texts, hence the length check (in characters, not bytes).
-      template = "{{ $path := ${path} }}{{ if ${inRepo} }}{{ $path = ${inRepoPath} }}{{ end }}{{ $max := ${widthPercent maxWidths.path} }}{{ if and (not ${inRepo}) ${inHomeFolder mappedSubdirs} }}{{ else if eq .Location .Env.HOME }}${homeIcon} {{ else if hasPrefix (printf \"%s/\" .Env.HOME) .Location }}${homeSubIcon} {{ else }}${folderIcon} {{ end }}{{ if gt (len (splitList \"\" $path)) (int $max) }}{{ truncE (mul -1 $max) $path }}{{ else }}{{ $path }}{{ end }}";
+      template = ''
+        {{- $path := ${path} -}}
+        {{- if ${inRepo} }}{{ $path = ${inRepoPath} }}{{ end -}}
+        {{- $max := ${widthPercent maxWidths.path} -}}
+
+        {{- /* Icon. Mapped home folders bring their own (unless in a repo) */ -}}
+        {{- if and (not ${inRepo}) ${inHomeFolder mappedSubdirs} -}}
+        {{- else if eq .Location .Env.HOME -}}
+          ${homeIcon}{{ " " }}
+        {{- else if hasPrefix (printf "%s/" .Env.HOME) .Location -}}
+          ${homeSubIcon}{{ " " }}
+        {{- else -}}
+          ${folderIcon}{{ " " }}
+        {{- end -}}
+
+        {{- /* Overly long paths keep their end: …/deep/dir. Negative truncE always adds
+               the … and fails on shorter texts, hence the length check (in characters,
+               not bytes) */ -}}
+        {{- if gt (len (splitList "" $path)) (int $max) -}}
+          {{ truncE (mul -1 $max) $path }}
+        {{- else -}}
+          {{ $path }}
+        {{- end -}}
+      '';
       options = {
         inherit style;
         mapped_locations = lib.mapAttrs' (
@@ -132,6 +156,8 @@ let
     "python"
     "mojo"
   ];
+  # The venv name is only shown when expanded with Ctrl-e (see src/oh-my-posh.zsh)
+  venvTemplate = ''{{- if and .Env.OMP_EXPAND .Venv }}{{ .Venv }} {{ end -}}'';
   languageSegments = lib.mapAttrsToList (
     type: icon:
     let
@@ -142,8 +168,15 @@ let
       style = "plain";
       foreground = "yellow";
       min_width = breakpoints.languages;
-      # The venv name is only shown when expanded with Ctrl-e (see src/oh-my-posh.zsh)
-      template = " ${icon} {{ if .Error }}{{ .Error }}{{ else }}${lib.optionalString hasVenv "{{ if and .Env.OMP_EXPAND .Venv }}{{ .Venv }} {{ end }}"}{{ .Full }}{{ end }}";
+      template = ''
+        {{- " " }}${icon}{{ " " -}}
+        {{- if .Error -}}
+          {{ .Error }}
+        {{- else -}}
+          ${lib.optionalString hasVenv venvTemplate}
+          {{- .Full }}
+        {{- end -}}
+      '';
       # Show in projects too, not only inside an active venv (the default)
       options = lib.optionalAttrs hasVenv { display_mode = "context"; };
     }
@@ -201,7 +234,18 @@ in
             type = "git";
             style = "plain";
             foreground = "magenta";
-            template = " {{ if .UpstreamIcon }}{{ .UpstreamIcon }} {{ end }}{{ .HEAD }}{{ if or (gt .Behind 0) (gt .Ahead 0) }} {{ if gt .Behind 0 }}⇣{{ .Behind }}{{ end }}{{ if gt .Ahead 0 }}⇡{{ .Ahead }}{{ end }}{{ end }}{{ if .Working.Changed }} {{ .Working.String }}{{ end }}{{ if .Staging.Changed }} {{ .Staging.String }}{{ end }}";
+            template = ''
+              {{- " " -}}
+              {{- if .UpstreamIcon }}{{ .UpstreamIcon }} {{ end -}}
+              {{- .HEAD -}}
+              {{- if or (gt .Behind 0) (gt .Ahead 0) -}}
+                {{ " " }}
+                {{- if gt .Behind 0 }}⇣{{ .Behind }}{{ end -}}
+                {{- if gt .Ahead 0 }}⇡{{ .Ahead }}{{ end -}}
+              {{- end -}}
+              {{- if .Working.Changed }} {{ .Working.String }}{{ end -}}
+              {{- if .Staging.Changed }} {{ .Staging.String }}{{ end -}}
+            '';
 
             options = {
               fetch_status = true;
@@ -236,7 +280,7 @@ in
             style = "plain";
             min_width = breakpoints.nixShell;
             foreground = "cyan";
-            template = "{{ if ne .Type \"unknown\" }} ${nixIcon} nix-shell{{ end }}";
+            template = ''{{ if ne .Type "unknown" }} ${nixIcon} nix-shell{{ end }}'';
           }
         ];
       }
