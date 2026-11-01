@@ -23,17 +23,78 @@ let
     Pictures = ""; # U+E244
     Videos = ""; # U+F447
   };
-  # Template condition: current dir is one of homeFolders or below it
-  inHomeFolder = "(or ${
-    lib.concatMapStringsSep " " (
-      name:
-      "(eq .Location (printf \"%s/${name}\" .Env.HOME)) (hasPrefix (printf \"%s/${name}/\" .Env.HOME) .Location)"
-    ) (lib.attrNames homeFolders)
-  })";
+  # Template condition: current dir is one of homeFolders (or below it, if withSubdirs)
+  inHomeFolder =
+    withSubdirs:
+    "(or ${
+      lib.concatMapStringsSep " " (
+        name:
+        "(eq .Location (printf \"%s/${name}\" .Env.HOME))"
+        + lib.optionalString withSubdirs " (hasPrefix (printf \"%s/${name}/\" .Env.HOME) .Location)"
+      ) (lib.attrNames homeFolders)
+    })";
   # Template condition: current dir is inside a git repo (other than a ~ dotfiles repo).
   # Reads the git segment's properties, see:
   # https://ohmyposh.dev/docs/configuration/templates#cross-segment-template-properties
   inRepo = "(and (.Segments.Contains \"Git\") (ne .Segments.Git.Dir .Env.HOME))";
+
+  # Responsive prompt: terminal widths (in columns) below which segments collapse or hide.
+  # Uses the segments' min_width/max_width, see:
+  # https://ohmyposh.dev/docs/configuration/segment
+  breakpoints = {
+    fullPath = 100; # below: all but the last folder collapse to their first letter
+    letterPath = 80; # below: only the last folder
+    languages = 70; # below: no language segments
+    nixShell = 60; # below: no nix-shell segment
+  };
+
+  # Maximum widths of segment texts, in percent of the terminal width. Longer texts
+  # are truncated with an ellipsis. The path is truncated as a last resort only,
+  # after the breakpoints above already collapsed it.
+  maxWidths = {
+    path = 40;
+    branch = 25;
+  };
+  # Template expression: percent of the terminal width, at least 8 columns.
+  # $OMP_COLUMNS is exported by src/oh-my-posh.zsh, templates can't read the width
+  # otherwise. Without it (e.g. omp used outside this wrapper) nothing is truncated.
+  widthPercent =
+    percent:
+    "(max 8 (div (mul (atoi (default \"9999\" .Env.OMP_COLUMNS)) ${toString percent}) 100))";
+
+  # Template expressions for the path text.
+  # In a repo, show the repo name and the path within it
+  repoPath = "(trimSuffix \"/\" (printf \"%s/%s\" .Segments.Git.RepoName .Segments.Git.RelativeDir))";
+  # repoPath collapsed like the letter style, as .Format doesn't shorten relative paths.
+  # Keeps the first letter of each folder but the last (two for hidden folders).
+  repoPathLetters = "(regexReplaceAll \"([.]?[^/])[^/]*/\" ${repoPath} \"$1/\")";
+  # The letter style drops the leading / of paths outside ~
+  letterPath = "(printf \"%s%s\" (ternary \"\" \"/\" (or (hasPrefix \"/\" .Path) (eq .Location .Env.HOME) (hasPrefix (printf \"%s/\" .Env.HOME) .Location))) .Path)";
+
+  mkPathSegment =
+    {
+      style,
+      path ? ".Path",
+      inRepoPath,
+      # Whether the mapped icon is still shown below a mapped home folder
+      mappedSubdirs ? true,
+    }:
+    {
+      type = "path";
+      style = "plain";
+      foreground = "blue";
+      # Mapped home folders bring their own icon (unless in a repo). Otherwise:
+      # home icon in ~, open folder icon below ~, folder icon elsewhere.
+      # Overly long paths keep their end: …/deep/dir. Negative truncE always adds the …
+      # and fails on shorter texts, hence the length check (in characters, not bytes).
+      template = "{{ $path := ${path} }}{{ if ${inRepo} }}{{ $path = ${inRepoPath} }}{{ end }}{{ $max := ${widthPercent maxWidths.path} }}{{ if and (not ${inRepo}) ${inHomeFolder mappedSubdirs} }}{{ else if eq .Location .Env.HOME }}${homeIcon} {{ else if hasPrefix (printf \"%s/\" .Env.HOME) .Location }}${homeSubIcon} {{ else }}${folderIcon} {{ end }}{{ if gt (len (splitList \"\" $path)) (int $max) }}{{ truncE (mul -1 $max) $path }}{{ else }}{{ $path }}{{ end }}";
+      options = {
+        inherit style;
+        mapped_locations = lib.mapAttrs' (
+          name: icon: lib.nameValuePair "~/${name}" "${icon} ${name}"
+        ) homeFolders;
+      };
+    };
 
   # Language version segments, shown in dirs containing matching files.
   # Icons from the oh-my-posh docs samples.
@@ -80,7 +141,9 @@ let
       inherit type;
       style = "plain";
       foreground = "yellow";
-      template = " ${icon} {{ if .Error }}{{ .Error }}{{ else }}${lib.optionalString hasVenv "{{ if .Venv }}{{ .Venv }} {{ end }}"}{{ .Full }}{{ end }}";
+      min_width = breakpoints.languages;
+      # The venv name is only shown when expanded with Ctrl-e (see src/oh-my-posh.zsh)
+      template = " ${icon} {{ if .Error }}{{ .Error }}{{ else }}${lib.optionalString hasVenv "{{ if and .Env.OMP_EXPAND .Venv }}{{ .Venv }} {{ end }}"}{{ .Full }}{{ end }}";
       # Show in projects too, not only inside an active venv (the default)
       options = lib.optionalAttrs hasVenv { display_mode = "context"; };
     }
@@ -103,21 +166,37 @@ in
         type = "prompt";
         alignment = "left";
         segments = [
-          {
-            type = "path";
-            style = "plain";
-            foreground = "blue";
-            # Mapped home folders bring their own icon (unless in a repo). Otherwise:
-            # home icon in ~, open folder icon below ~, folder icon elsewhere.
-            # In a repo, show the repo name and the path within it.
-            template = "{{ if and (not ${inRepo}) ${inHomeFolder} }}{{ else if eq .Location .Env.HOME }}${homeIcon} {{ else if hasPrefix (printf \"%s/\" .Env.HOME) .Location }}${homeSubIcon} {{ else }}${folderIcon} {{ end }}{{ if ${inRepo} }}{{ .Segments.Git.RepoName }}{{ if .Segments.Git.RelativeDir }}/{{ .Segments.Git.RelativeDir }}{{ end }}{{ else }}{{ .Path }}{{ end }}";
-            options = {
+          # One path segment per width range, only one of them is shown
+          (
+            mkPathSegment {
               style = "full";
-              mapped_locations = lib.mapAttrs' (
-                name: icon: lib.nameValuePair "~/${name}" "${icon} ${name}"
-              ) homeFolders;
-            };
-          }
+              inRepoPath = repoPath;
+            }
+            // {
+              min_width = breakpoints.fullPath;
+            }
+          )
+          (
+            mkPathSegment {
+              style = "letter";
+              path = letterPath;
+              inRepoPath = repoPathLetters;
+            }
+            // {
+              min_width = breakpoints.letterPath;
+              max_width = breakpoints.fullPath - 1;
+            }
+          )
+          (
+            mkPathSegment {
+              style = "folder";
+              inRepoPath = ".Path";
+              mappedSubdirs = false;
+            }
+            // {
+              max_width = breakpoints.letterPath - 1;
+            }
+          )
           {
             type = "git";
             style = "plain";
@@ -129,6 +208,8 @@ in
               # Needed for .UpstreamIcon in omp < 31
               fetch_upstream_icon = true;
               branch_icon = "${branchIcon} ";
+              # Truncate long branch names (incl. the trailing …), see maxWidths
+              branch_template = "{{ truncE ${widthPercent maxWidths.branch} .Branch }}";
               # Remote platform icons, shown via .UpstreamIcon
               github_icon = ""; # nf-fa-github
               gitlab_icon = ""; # nf-fa-gitlab
@@ -153,6 +234,7 @@ in
             # omp infers from /nix/store in $PATH, as the wrapper always adds those.
             type = "nix-shell";
             style = "plain";
+            min_width = breakpoints.nixShell;
             foreground = "cyan";
             template = "{{ if ne .Type \"unknown\" }} ${nixIcon} nix-shell{{ end }}";
           }
