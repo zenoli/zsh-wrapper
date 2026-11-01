@@ -8,6 +8,7 @@
 {
   imports = [ ./plugins.nix ];
   prompt = "starship";
+  viMode.enable = true;
   prompts = {
     powerlevel10k = {
       "p10k.zsh" = ./src/.p10k.zsh;

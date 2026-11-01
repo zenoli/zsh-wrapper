@@ -8,6 +8,8 @@
   plugins = with pkgs; [
     {
       package = zsh-vi-mode;
+      # Replaced by the built-in vi mode (viMode.enable)
+      enable = false;
       # Upstream zvm_define_widget forks two subshells per widget (~45ms before
       # the first prompt). Same logic, but using fork-free zsh parameters.
       init = ''
