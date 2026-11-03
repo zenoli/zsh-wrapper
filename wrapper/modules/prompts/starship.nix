@@ -18,6 +18,7 @@ in
     integrations.starship = {
       enable = config.prompts.starship.enable;
       package = config.prompts.starship.wrapper;
+      initArgs = lib.mkDefault "init zsh";
     };
   };
 }

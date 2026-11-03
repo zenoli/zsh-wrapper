@@ -46,8 +46,6 @@ let
     ## ${lib.getName integration.package} integration
     ${getInitCommand integration}
   '') initializableIntegrations;
-  direnvConfig = config.integrations.direnv;
-  inherit (config.utils) initScript;
 in
 {
   options = {
@@ -91,11 +89,8 @@ in
   config = {
     integrations = {
       # Preset init commands
-      fzf.init = lib.mkDefault (exe: "source ${initScript exe "--zsh"}");
-      starship.initArgs = lib.mkDefault "init zsh";
-      # Only set init if powerlevel10k is disabled and direnv is enabled
-      # powerlevel10k has its own special way of initializing direnv
-      direnv.initArgs = lib.mkIf (!config.prompts.powerlevel10k.enable) (lib.mkDefault "hook zsh");
+      fzf.initArgs = lib.mkDefault "--zsh";
+      direnv.initArgs = lib.mkDefault "hook zsh";
       devenv.initArgs = lib.mkDefault "hook zsh";
       kitty.init = ''
         if [[ -n "$KITTY_INSTALLATION_DIR" ]]; then
@@ -112,9 +107,5 @@ in
       data = i.package;
       prefix = true;
     }) runtimeIntegrations;
-    # We need to re-define this in the context of zsh, as otherwise
-    # the direnv hook will not pick up the config wrapped inside
-    # the direnv-wrapper.
-    # env.DIRENV_CONFIG = lib.mkIf direnvConfig.enable direnvConfig.settings.passthru.DIRENV_CONFIG;
   };
 }

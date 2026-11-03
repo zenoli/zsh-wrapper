@@ -74,10 +74,12 @@ in
           ''
             emulate zsh -c "$(${direnvExe} export zsh)"
             ${instantPrompt}
-            emulate zsh -c "source ${config.utils.initScript direnvExe "hook zsh"}"
+            emulate zsh -c "source ${config.utils.initScript direnvExe config.integrations.direnv.initArgs}"
           ''
         else
           instantPrompt;
     };
+    # powerlevel10k initializes direnv itself
+    integrations.direnv.init = lib.mkIf cfg.enable (lib.mkForce null);
   };
 }
