@@ -6,8 +6,11 @@
   ...
 }:
 {
-  imports = [ ./plugins.nix ];
-  prompt = "starship";
+  imports = [
+    ./plugins.nix
+    ./oh-my-posh.nix
+  ];
+  prompt = "oh-my-posh";
   viMode.enable = true;
   prompts = {
     powerlevel10k = {
@@ -18,6 +21,10 @@
     };
   };
   integrations = {
+    kitty = {
+      enable = true;
+      install = false;
+    };
     direnv = {
       enable = lib.mkDefault true;
       settings = {
@@ -29,13 +36,8 @@
       };
     };
     devenv.enable = false;
-    fzf = {
-      enable = lib.mkDefault true;
-    };
-    kitty = {
-      enable = true;
-      install = false;
-    };
+    fzf.enable = lib.mkDefault true;
+    yazi.enable = true;
   };
   zshSrc.directory = lib.mkDefault ./src;
 }

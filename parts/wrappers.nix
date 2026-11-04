@@ -6,7 +6,6 @@
       {
         imports = [ wlib.wrapperModules.starship ];
         preset = "tokyo-night";
-        configFile = ./starship.toml;
         settings.add_newline = false;
       };
     direnv =
