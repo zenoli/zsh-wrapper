@@ -92,6 +92,8 @@ in
       fzf.initArgs = lib.mkDefault "--zsh";
       direnv.initArgs = lib.mkDefault "hook zsh";
       devenv.initArgs = lib.mkDefault "hook zsh";
+
+      # see https://sw.kovidgoyal.net/kitty/shell-integration/#manual-shell-integration
       kitty.init = ''
         if [[ -n "$KITTY_INSTALLATION_DIR" ]]; then
           export KITTY_SHELL_INTEGRATION="enabled"
@@ -99,6 +101,17 @@ in
           kitty-integration
           unfunction kitty-integration
         fi
+      '';
+
+      # see https://yazi-rs.github.io/docs/quick-start
+      yazi.init = exe: ''
+        function y() {
+          local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
+          ${exe} "$@" --cwd-file="$tmp"
+          IFS= read -r -d ''' cwd < "$tmp"
+          [ -n "$cwd" ] && [ "$cwd" != "$PWD" ] && [ -d "$cwd" ] && builtin cd -- "$cwd"
+          rm -f -- "$tmp"
+        }
       '';
 
     };

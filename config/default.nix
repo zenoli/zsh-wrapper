@@ -21,6 +21,10 @@
     };
   };
   integrations = {
+    kitty = {
+      enable = true;
+      install = false;
+    };
     direnv = {
       enable = lib.mkDefault true;
       settings = {
@@ -32,13 +36,8 @@
       };
     };
     devenv.enable = false;
-    fzf = {
-      enable = lib.mkDefault true;
-    };
-    kitty = {
-      enable = true;
-      install = false;
-    };
+    fzf.enable = lib.mkDefault true;
+    yazi.enable = true;
   };
   zshSrc.directory = lib.mkDefault ./src;
 }
